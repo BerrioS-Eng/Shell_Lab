@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 #define MAX_ARGS 64
 #define MAX_TOKEN 256
@@ -53,6 +54,23 @@ void free_args(char *args[], int argc) {
     }
 }
 
+char *parse_redirect(char *args[], int nargs, int *redir_pos) {
+    *redir_pos = -1;
+
+    for (int i = 0; i < nargs; i++) {
+        if (strcmp(args[i], ">") == 0) {
+            // Validar: no puede haber otro >, debe haber exactamente 1 archivo después
+            if (i == 0 || i + 1 != nargs - 1) {
+                return NULL; // error: sin comando antes, o múltiples archivos
+            }
+            // Verificar que no haya otro > después
+            *redir_pos = i;
+            return args[i + 1];
+        }
+    }
+    return NULL; // no hay redirección
+}
+
 char *resolve_path(char *cmd) {
     if (strchr(cmd, '/')) return strdup(cmd);
 
@@ -66,16 +84,26 @@ char *resolve_path(char *cmd) {
     return NULL;
 }
 
-void execute_command(char *args[]) {
+void execute_command(char *args[], char *outfile) {
     char *fullpath = resolve_path(args[0]);
     if (!fullpath) {
         fprintf(stderr, "wish: command not found: %s\n", args[0]);
         return;
     }
-
+ 
     pid_t pid = fork();
-
+ 
     if (pid == 0) {
+        if (outfile) {
+            int fd = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            if (fd < 0) {
+                perror("open");
+                exit(1);
+            }
+            dup2(fd, STDOUT_FILENO);
+            dup2(fd, STDERR_FILENO);
+            close(fd);
+        }
         execv(fullpath, args);
         perror("execv");
         exit(1);
@@ -149,7 +177,7 @@ int main(int argc, char *argv[]){
             continue;
         }
 
-        if (strcmp(args[0], "path") == 0) {
+        if (strcmp(args[0], "route") == 0) {
             for (int i = 0; i < path_count; i++) {
                 free(search_path[i]);
             }
@@ -162,8 +190,28 @@ int main(int argc, char *argv[]){
             continue;
         }
 
-        execute_command(args); // Comandos externos
-        free_args(args, nargs); // Liberar argumentos
+        int redir_pos = -1;
+        char *outfile = parse_redirect(args, nargs, &redir_pos);
+
+        if (redir_pos == -1 && outfile == NULL) {
+            // Sin redirección
+            execute_command(args, NULL);
+        } else if (redir_pos > 0) {
+            // Redirección válida
+            char *file = strdup(outfile);
+            free(args[redir_pos]);      // liberar ">"
+            free(args[redir_pos + 1]);  // liberar nombre de archivo
+            args[redir_pos] = NULL;
+            int original_nargs = nargs;
+            nargs = redir_pos;
+            execute_command(args, file);
+            free(file);
+        } else {
+            // Error de redirección
+            fprintf(stderr, "wish: invalid redirection\n");
+        }
+
+        free_args(args, redir_pos > 0 ? redir_pos : nargs);
     }
 
     free(line);
