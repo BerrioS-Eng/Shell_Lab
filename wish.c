@@ -174,7 +174,10 @@ int main(int argc, char *argv[]){
         int cmd_count = 0;
 
         while ((cmd = strsep(&temp, "&")) != NULL) {
-            if (strlen(cmd) == 0) {
+            //limpia los espacios al inicio
+            while (*cmd == ' ' || *cmd == '\t') cmd++;
+            //valida comando vacío
+            if (*cmd == '\0') {
                 write(STDERR_FILENO, error_message, strlen(error_message));
                 cmd_count=0;
                 break;
