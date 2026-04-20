@@ -8,6 +8,26 @@ Implementing a _command line interpreter_ (CLI).
 ## Video de sustentación: 
 https://drive.google.com/drive/folders/1d5eIoyA-K_gEomd-Z78GLwVfDVPHzz89
 
+## 🚀 Características
+- **Modo Interactivo:** Un prompt dinámico que muestra el directorio actual y espera comandos del usuario.
+- **Modo Batch:** Capacidad de leer y ejecutar comandos desde un archivo de texto.
+- **Redirección de Salida:** Soporte para el operador `>` para enviar la salida de un comando a un archivo.
+- **Tokenización Inteligente:** Manejo de argumentos y soporte básico para comillas.
+- **Gestión de Procesos:** Uso de `fork()`, `execv()` y `waitpid()` para la ejecución de binarios.
+
+## 🛠️ Comandos Integrados (Built-ins)
+
+El shell incluye comandos internos que no dependen de binarios externos:
+
+1.  **`exit`**: Cierra el shell de forma segura.
+2.  **`chd <directorio>`**: Cambia el directorio de trabajo actual (equivalente a `cd`).
+3.  **`route <ruta1> <ruta2> ...`**: Configura los directorios donde el shell buscará los ejecutables. Si se llama sin argumentos, limpia todas las rutas.
+
+## 📋 Requisitos
+
+- Sistema operativo basado en Unix (Linux, macOS).
+- Compilador `gcc`.
+
 ## Parallel Commands
 El shell desarrollado permite la ejecución paralela que se implementa usando el operador &. La lógica general consiste en dividir la línea de entrada en múltiples comandos independientes y ejecutarlos de forma concurrente.
 Primero se realiza una validación de sintaxis para evitar casos inválidos cómo && o el uso de & al inicio o al final de la línea. Si se detecta alguno de estos casos, se imprime el mensaje de error y se continúa con la siguiente iteración del shell.
