@@ -5,6 +5,9 @@ Implementing a _command line interpreter_ (CLI).
 - Sebastian Andres Berrio Murillo, CC. 1066753315, sebastian.berriom@udea.edu.co.
 - Sandy Dahiana Ruiz Higuita, CC. 1028031733, sandy.ruizh@udea.edu.co - sadrh97@gmail.com.
 
+## Video de sustentación: 
+https://drive.google.com/drive/folders/1d5eIoyA-K_gEomd-Z78GLwVfDVPHzz89
+
 ## Parallel Commands
 El shell desarrollado permite la ejecución paralela que se implementa usando el operador &. La lógica general consiste en dividir la línea de entrada en múltiples comandos independientes y ejecutarlos de forma concurrente.
 Primero se realiza una validación de sintaxis para evitar casos inválidos cómo && o el uso de & al inicio o al final de la línea. Si se detecta alguno de estos casos, se imprime el mensaje de error y se continúa con la siguiente iteración del shell.
