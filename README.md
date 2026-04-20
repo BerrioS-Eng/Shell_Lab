@@ -42,23 +42,23 @@ Durante el proceso tuvimos varios problemas
 ## Pruebas realizadas
 Se realizaron pruebas para verificar tanto la ejecución en paralelo como el manejo de errores:
 
-# Pruebas de paralelismo
+### Pruebas de paralelismo
 - sleep 2 & sleep 3 & ls: Permite verificar que los comandos se ejecutan simultáneamente
 - pwd & ls & echo hola: Confirma ejecución concurrente de múltiples comandos.
-# Pruebas de errores de sintaxis
+### Pruebas de errores de sintaxis
 - ls && pwd
 - & ls
 - ls &
 - ls & & pwd
 En todos los casos se verificó que se imprime el mensaje de error.
 
-# Pruebas de redirección
+### Pruebas de redirección
 - ls > out.txt
 - ls >
 - ls > out1 > out2
 Se validó que solo el formato correcto es aceptado.
 
-# Pruebas de ejecución inválida
+### Pruebas de ejecución inválida
 - comando_inexistente
 - ls archivo_inexistente
 Se comprobó que el shell maneja correctamente los errores sin detener su ejecución.
