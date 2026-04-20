@@ -9,6 +9,7 @@
 #define MAX_ARGS 64
 #define MAX_TOKEN 256
 
+char error_message[30] = "An error has occurred\n";
 // Search path configurable
 char *search_path[64] = {"/bin", NULL};
 int path_count = 1;
@@ -85,35 +86,32 @@ char *resolve_path(char *cmd) {
 }
 
 void execute_command(char *args[], char *outfile) {
+    if(path_count == 0) {
+        write(STDERR_FILENO, error_message, strlen(error_message));
+        exit(1);
+    }
+
     char *fullpath = resolve_path(args[0]);
     if (!fullpath) {
-        fprintf(stderr, "wish: command not found: %s\n", args[0]);
-        return;
-    }
- 
-    pid_t pid = fork();
- 
-    if (pid == 0) {
-        if (outfile) {
-            int fd = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-            if (fd < 0) {
-                perror("open");
-                exit(1);
-            }
-            dup2(fd, STDOUT_FILENO);
-            dup2(fd, STDERR_FILENO);
-            close(fd);
-        }
-        execv(fullpath, args);
-        perror("execv");
+        write(STDERR_FILENO, error_message, strlen(error_message));
         exit(1);
-    } else if (pid > 0) {
-        free(fullpath);
-        waitpid(pid, NULL, 0);
-    } else {
-        free(fullpath);
-        perror("fork");
     }
+ 
+    if (outfile != NULL) {
+        int fd = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd < 0) {
+            write(STDERR_FILENO, error_message, strlen(error_message));
+            free(fullpath);
+            exit(1);
+        }
+        dup2(fd, STDOUT_FILENO);
+        dup2(fd, STDERR_FILENO);
+        close(fd);
+    } 
+    execv(fullpath, args);
+    write(STDERR_FILENO, error_message, strlen(error_message));
+    free(fullpath);
+    exit(1);
 }
 
 int main(int argc, char *argv[]){
@@ -123,7 +121,7 @@ int main(int argc, char *argv[]){
     char cwd[512]; // Util para tomar ruta actual
 
     if (argc > 2) {
-        fprintf(stderr, "usage: wish [batch_file]\n");
+        write(STDERR_FILENO, error_message, strlen(error_message));
         exit(1);
     }
 
@@ -134,7 +132,7 @@ int main(int argc, char *argv[]){
     if (!interactive) {
         input = fopen(argv[1], "r");
         if (!input){
-            fprintf(stderr, "Error: cannot open %s\n", argv[1]);
+            write(STDERR_FILENO, error_message, strlen(error_message));
             exit(1);
         }
     }
@@ -146,7 +144,7 @@ int main(int argc, char *argv[]){
         // Validación de modo interactivo
         if (interactive){
             if (getcwd(cwd, sizeof(cwd)) != NULL){
-                printf("wish> %s $ ", cwd);
+                printf("wish> ");
             } else {
                 printf("wish> ");
             }
@@ -154,22 +152,97 @@ int main(int argc, char *argv[]){
         }
 
         // Lectura de lineas, aplica para ambos modos
-        if (getline(&line, &len, input) == -1) exit(0); //EOF
+        if (getline(&line, &len, input) == -1){
+            break;
+        }; //EOF
         line[strcspn(line, "\n")] = 0;
         if (line[0] == '\0') continue;
+
+        //Detectar errores de sintaxis relacionados con '&' o '&&'
+        if(strstr(line, "&&") != NULL || line[0] == '&' || line[strlen(line)-1] == '&') {
+            write(STDERR_FILENO, error_message, strlen(error_message));
+            continue;
+        }
 
         char *args[MAX_ARGS];
         int nargs = tokenize(line, args); // Tokenizar los argumentos
 
+        char *temp = line;
+        char *cmd;
+
+        char *commands[64];
+        int cmd_count = 0;
+
+        while ((cmd = strsep(&temp, "&")) != NULL) {
+            if (strlen(cmd) == 0) {
+                write(STDERR_FILENO, error_message, strlen(error_message));
+                cmd_count=0;
+                break;
+            }
+            commands[cmd_count++] = cmd;
+        }
+
+        if (cmd_count == 0) continue;
+
+        pid_t pids[64];
+        int pid_count =0;
+
+        for(int i=0; i<cmd_count; i++) {
+            char *args[MAX_ARGS];
+            char *outfile = NULL;
+
+            //Valida que no haya más de una redirección '>'
+            int count_redir = 0;
+            for (int k = 0; commands[i][k]; k++) {
+                if (commands[i][k] == '>') count_redir++;
+            }
+
+            if(count_redir > 1) {
+                write(STDERR_FILENO, error_message, strlen(error_message));
+                continue;
+            }
+
+            //Redirección
+            char *redir = strchr(commands[i], '>');
+            if (redir != NULL) {
+                *redir = '\0';
+                redir++;
+
+                while (*redir == ' ' || *redir == '\t') redir++;
+
+                if (*redir == '\0') {
+                    write(STDERR_FILENO, error_message, strlen(error_message));
+                    continue;
+                }
+
+                char *extra = strchr(redir, ' ');
+                if (extra != NULL) {
+                    *extra = '\0';
+                    extra++;
+                    if(strlen(extra)>0){
+                        write(STDERR_FILENO, error_message, strlen(error_message));
+                        continue;
+                    }
+                }
+                outfile = redir;
+            }
+
+            int nargs = tokenize(commands[i], args);
+            if (nargs == 0) continue;
+
         // Builtins
         if (strcmp(args[0], "exit") == 0) {
-            free_args(args, nargs);
-            exit(0);
+            if(nargs != 1) {
+                write(STDERR_FILENO, error_message, strlen(error_message));
+            } else {
+                exit(0);
+            }
+            continue;
         }
 
         if (strcmp(args[0], "chd") == 0) {
             if (nargs != 2) {
-                fprintf(stderr, "cd: expected 1 argument\n");
+                write(STDERR_FILENO, error_message, strlen(error_message));
             } else if (chdir(args[1]) != 0) {
                 perror("cd");
             }
@@ -190,32 +263,23 @@ int main(int argc, char *argv[]){
             continue;
         }
 
-        int redir_pos = -1;
-        char *outfile = parse_redirect(args, nargs, &redir_pos);
-
-        if (redir_pos == -1 && outfile == NULL) {
-            // Sin redirección
-            execute_command(args, NULL);
-        } else if (redir_pos > 0) {
-            // Redirección válida
-            char *file = strdup(outfile);
-            free(args[redir_pos]);      // liberar ">"
-            free(args[redir_pos + 1]);  // liberar nombre de archivo
-            args[redir_pos] = NULL;
-            int original_nargs = nargs;
-            nargs = redir_pos;
-            execute_command(args, file);
-            free(file);
+        pid_t pid = fork();
+        if (pid == 0) {
+            execute_command(args, outfile);
+        } else if (pid > 0) {
+            pids[pid_count++] = pid;
         } else {
             // Error de redirección
-            fprintf(stderr, "wish: invalid redirection\n");
+            write(STDERR_FILENO, error_message, strlen(error_message));
         }
 
-        free_args(args, redir_pos > 0 ? redir_pos : nargs);
+        free_args(args, nargs);
     }
 
-    free(line);
-    if (!interactive) fclose(input);
+    for (int i = 0; i < pid_count; i++) {
+        waitpid(pids[i], NULL, 0);
+    }
+}
 
     return 0;
 }
