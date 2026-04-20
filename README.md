@@ -5,7 +5,7 @@ Implementing a _command line interpreter_ (CLI).
 - Sebastian Andres Berrio Murillo, CC. 1066753315, sebastian.berriom@udea.edu.co.
 - Sandy Dahiana Ruiz Higuita, CC. 1028031733, sandy.ruizh@udea.edu.co - sadrh97@gmail.com.
 
-##Parallel Commands
+## Parallel Commands
 El shell desarrollado permite la ejecución paralela que se implementa usando el operador &. La lógica general consiste en dividir la línea de entrada en múltiples comandos independientes y ejecutarlos de forma concurrente.
 Primero se realiza una validación de sintaxis para evitar casos inválidos cómo && o el uso de & al inicio o al final de la línea. Si se detecta alguno de estos casos, se imprime el mensaje de error y se continúa con la siguiente iteración del shell.
 
@@ -15,7 +15,7 @@ Cuando el programa obtiene los comandos válidos, el shell recorre cada uno y cr
 
 Después de lanzar todos los procesos en paralelo, el padre utiliza waitpid(), en un ciclo para esperar a que todos los procesos hijos terminen. Con esto garantizamos que el shell no muestre el prompt nuevamente hasta que todos los comandos hayan finalizado.
 
-##Program Errors
+## Program Errors
 El manejo de errores, se basa en la cadena definda como:
 char error_message[30] = "An error has ocurred\n"
 Tal como se definió en las indicaciones, cada vez que ocurre un error, este mensaje se imprime usando write() hacia STDERR_FILENO, cumpliendo con la especificación.
